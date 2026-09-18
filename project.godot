@@ -1,0 +1,15 @@
+config_version=5
+
+[application]
+
+config/name="Dev-Onix Wrestling"
+run/main_scene="res://main.tscn"
+config/features=PackedStringArray("4.3", "Forward Plus")
+
+[physics]
+
+3d/default_gravity=20.0
+
+[rendering]
+
+renderer/rendering_method="mobile"
