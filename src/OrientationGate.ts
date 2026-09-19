@@ -1,9 +1,4 @@
 // src/OrientationGate.ts
-// Browsers only allow orientation-lock after a user gesture + fullscreen
-// (a security restriction, not something we can bypass) — so we show a
-// "Tap to Start" button; tapping it requests fullscreen + landscape lock
-// together. If the browser/OS doesn't support locking (some don't), we
-// fall back to just asking the player to rotate their phone.
 export function showStartOverlay(onStart: () => void): void {
   const overlay = document.createElement('div');
   Object.assign(overlay.style, {
@@ -12,7 +7,7 @@ export function showStartOverlay(onStart: () => void): void {
     zIndex: '100', fontFamily: 'sans-serif', textAlign: 'center', padding: '20px',
   });
   overlay.innerHTML = `
-    <h1 style="font-size:22px;">🤼 Dev-Onix Wrestling</h1>
+    <h1 style="font-size:22px;">🤼 Wrestling Clash</h1>
     <p style="font-size:14px;color:#aaa;">নিচের বাটনে চাপুন — গেম landscape মোডে শুরু হবে</p>
     <button id="start-btn" style="margin-top:16px;padding:14px 32px;font-size:18px;font-weight:bold;
       background:#3b82f6;color:white;border:none;border-radius:10px;">Start Match</button>
@@ -22,10 +17,10 @@ export function showStartOverlay(onStart: () => void): void {
   document.getElementById('start-btn')!.addEventListener('click', async () => {
     try {
       await document.documentElement.requestFullscreen();
-      // @ts-ignore — TypeScript's lib doesn't know 'landscape' as a lock type yet
+      // @ts-ignore
       await (screen.orientation as any).lock('landscape');
     } catch {
-      // Not supported on this browser/OS — that's fine, rotate prompt below covers it.
+      // Not supported — the rotate prompt below covers it.
     }
     overlay.remove();
     onStart();
