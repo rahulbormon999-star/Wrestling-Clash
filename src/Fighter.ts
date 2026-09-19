@@ -1,14 +1,16 @@
 // src/Fighter.ts
-// One class drives every fighter — player or AI — so combat rules stay
-// identical regardless of who controls the body. Phase 1 uses a capsule
-// mesh (built here, no external model needed) — real Mixamo models swap
-// in later without touching this state machine.
+// One class drives every fighter — player or AI. Phase 1 uses a capsule
+// mesh (built here) — real Mixamo models swap in later without touching
+// this state machine. Added: a brief emissive "flash" on hit so damage is
+// visible even without a health-number popup.
 import { Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh } from '@babylonjs/core';
 
 export enum FighterState {
   IDLE, MOVING, ATTACKING, GRAPPLING, GRAPPLED,
   GROUNDED, PINNING, PINNED, RECOVERING, KO,
 }
+
+export interface MoveVector { x: number; y: number; } // x: -1..1 left/right, y: -1..1 back/forward
 
 export class Fighter {
   public mesh: Mesh;
@@ -18,6 +20,8 @@ export class Fighter {
   public isPlayerControlled: boolean;
   public moveSpeed = 4;
 
+  private material: StandardMaterial;
+  private baseColor: Color3;
   private regenTimer = 0;
   private readonly PIN_BREAK_HEALTH_THRESHOLD = 10;
 
@@ -25,21 +29,20 @@ export class Fighter {
     this.isPlayerControlled = isPlayerControlled;
     this.mesh = MeshBuilder.CreateCapsule(name, { height: 1.8, radius: 0.4 }, scene);
     this.mesh.position = position;
-    const mat = new StandardMaterial(name + 'Mat', scene);
-    mat.diffuseColor = color;
-    this.mesh.material = mat;
+    this.baseColor = color;
+    this.material = new StandardMaterial(name + 'Mat', scene);
+    this.material.diffuseColor = color;
+    this.mesh.material = this.material;
   }
 
-  update(deltaSeconds: number, input?: { forward: boolean; back: boolean; left: boolean; right: boolean }): void {
+  update(deltaSeconds: number, moveVector?: MoveVector): void {
     this.regenerateHealth(deltaSeconds);
-    if (this.isPlayerControlled && input && (this.state === FighterState.IDLE || this.state === FighterState.MOVING)) {
-      this.handleMovement(input, deltaSeconds);
+    if (this.isPlayerControlled && moveVector && (this.state === FighterState.IDLE || this.state === FighterState.MOVING)) {
+      this.handleMovement(moveVector, deltaSeconds);
     }
   }
 
   private regenerateHealth(deltaSeconds: number): void {
-    // Spec: 1% per 3 seconds normally, 1% per 2 seconds at 0%. No regen
-    // while actively attacking/grappling.
     if (this.state === FighterState.ATTACKING || this.state === FighterState.GRAPPLING) return;
     this.regenTimer += deltaSeconds;
     const interval = this.health <= 0 ? 2 : 3;
@@ -49,16 +52,12 @@ export class Fighter {
     }
   }
 
-  private handleMovement(input: { forward: boolean; back: boolean; left: boolean; right: boolean }, deltaSeconds: number): void {
-    const dir = new Vector3(0, 0, 0);
-    if (input.forward) dir.z -= 1;
-    if (input.back) dir.z += 1;
-    if (input.left) dir.x -= 1;
-    if (input.right) dir.x += 1;
-
-    if (dir.length() > 0) {
-      dir.normalize();
-      this.mesh.position.addInPlace(dir.scale(this.moveSpeed * deltaSeconds));
+  private handleMovement(moveVector: MoveVector, deltaSeconds: number): void {
+    const raw = new Vector3(moveVector.x, 0, -moveVector.y);
+    const magnitude = Math.min(raw.length(), 1);
+    if (magnitude > 0.05) {
+      const dir = raw.normalize();
+      this.mesh.position.addInPlace(dir.scale(this.moveSpeed * magnitude * deltaSeconds));
       this.state = FighterState.MOVING;
       this.mesh.rotation.y = Math.atan2(dir.x, dir.z);
     } else {
@@ -124,11 +123,18 @@ export class Fighter {
     if (this.state === FighterState.KO) return;
     const multiplier = this.health < 10 ? 1.3 : 1.0;
     this.health = Math.max(0, this.health - amount * multiplier);
+    this.flashHit();
     if (this.health <= 0) this.state = FighterState.KO;
+  }
+
+  private flashHit(): void {
+    // Visible-even-without-a-number feedback: brief white flash on hit.
+    this.material.emissiveColor = new Color3(1, 1, 1);
+    setTimeout(() => { this.material.emissiveColor = new Color3(0, 0, 0); }, 120);
   }
 
   private distanceToOpponent(): number {
     if (!this.opponent) return Infinity;
     return Vector3.Distance(this.mesh.position, this.opponent.mesh.position);
   }
-  }
+        }
