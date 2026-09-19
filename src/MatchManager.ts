@@ -1,5 +1,4 @@
 // src/MatchManager.ts
-// Owns match lifecycle: spawn fighters, wire AI/referee/UI/controls, declare winner.
 import { Scene, Vector3, Color3 } from '@babylonjs/core';
 import { Fighter } from './Fighter';
 import { AIController } from './AIController';
@@ -26,14 +25,15 @@ export class MatchManager {
 
     this.referee = new RefereeAI(this.fighterA, this.fighterB);
     this.referee.onMatchWon = (winner) => this.onMatchWon(winner);
-
     this.healthUI = new HealthUI(this.fighterA, this.fighterB);
+    this.referee.onCount = (n) => this.healthUI.showCount(n);
+
     this.controls = new TouchControls(this.fighterA);
   }
 
   update(deltaSeconds: number): void {
     if (this.matchOver) return;
-    this.fighterA.update(deltaSeconds, this.controls.input);
+    this.fighterA.update(deltaSeconds, this.controls.moveVector);
     this.fighterB.update(deltaSeconds);
     this.aiController.update(deltaSeconds);
     this.referee.update(deltaSeconds);
