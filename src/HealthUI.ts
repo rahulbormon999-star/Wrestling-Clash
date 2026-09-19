@@ -1,27 +1,41 @@
 // src/HealthUI.ts
-// Per spec: your own health is exact, opponent's is only a rough visual read.
 import { Fighter } from './Fighter';
 
 export class HealthUI {
   private playerBarFill: HTMLDivElement;
   private opponentLabel: HTMLDivElement;
+  private countLabel: HTMLDivElement;
 
   constructor(private player: Fighter, private opponent: Fighter) {
     const container = document.createElement('div');
     Object.assign(container.style, {
-      position: 'fixed', top: '16px', left: '16px', color: 'white',
+      position: 'fixed', top: '10px', left: '10px', color: 'white',
       fontFamily: 'sans-serif', zIndex: '10',
     });
     container.innerHTML = `
-      <div style="font-size:14px;">You</div>
-      <div style="width:200px;height:16px;background:#333;border-radius:8px;overflow:hidden;margin:4px 0;">
+      <div style="font-size:13px;">You</div>
+      <div style="width:180px;height:14px;background:#333;border-radius:8px;overflow:hidden;margin:4px 0;">
         <div id="player-health-fill" style="height:100%;background:#22c55e;width:100%;"></div>
       </div>
-      <div id="opponent-label" style="font-size:13px;margin-top:8px;">Opponent: Looking strong</div>
+      <div id="opponent-label" style="font-size:12px;margin-top:4px;">Opponent: Looking strong</div>
     `;
     document.body.appendChild(container);
     this.playerBarFill = container.querySelector('#player-health-fill') as HTMLDivElement;
     this.opponentLabel = container.querySelector('#opponent-label') as HTMLDivElement;
+
+    this.countLabel = document.createElement('div');
+    Object.assign(this.countLabel.style, {
+      position: 'fixed', top: '40%', left: '50%', transform: 'translate(-50%,-50%)',
+      color: 'white', fontSize: '72px', fontWeight: 'bold', fontFamily: 'sans-serif',
+      textShadow: '0 0 12px black', zIndex: '20', display: 'none',
+    });
+    document.body.appendChild(this.countLabel);
+  }
+
+  showCount(n: number): void {
+    this.countLabel.textContent = String(n) + '!';
+    this.countLabel.style.display = 'block';
+    setTimeout(() => { this.countLabel.style.display = 'none'; }, 500);
   }
 
   update(): void {
