@@ -19,10 +19,10 @@ export class TouchControls {
 
   private buildDPad(): void {
     const positions: { key: keyof MovementInput; label: string; left: string; bottom: string }[] = [
-      { key: 'forward', label: '▲', left: '70px', bottom: '150px' },
-      { key: 'back', label: '▼', left: '70px', bottom: '80px' },
-      { key: 'left', label: '◀', left: '10px', bottom: '115px' },
-      { key: 'right', label: '▶', left: '130px', bottom: '115px' },
+      { key: 'forward', label: '▲', left: '70px', bottom: '90px' },
+      { key: 'back', label: '▼', left: '70px', bottom: '20px' },
+      { key: 'left', label: '◀', left: '10px', bottom: '55px' },
+      { key: 'right', label: '▶', left: '130px', bottom: '55px' },
     ];
     for (const p of positions) {
       const btn = this.makeButton(p.label, { position: 'fixed', left: p.left, bottom: p.bottom, width: '50px', height: '50px' });
@@ -36,12 +36,13 @@ export class TouchControls {
 
   private buildActionButtons(): void {
     const actions: { label: string; right: string; bottom: string; onClick: () => void }[] = [
-      { label: 'Punch', right: '150px', bottom: '150px', onClick: () => this.player.punch() },
-      { label: 'Kick', right: '150px', bottom: '80px', onClick: () => this.player.kick() },
-      { label: 'Grab', right: '80px', bottom: '150px', onClick: () => this.player.grab() },
-      { label: 'Throw', right: '80px', bottom: '80px', onClick: () => this.player.throwOpponent() },
-      { label: 'Pin', right: '10px', bottom: '150px', onClick: () => this.player.attemptPin() },
-      { label: 'Break', right: '10px', bottom: '80px', onClick: () => this.player.breakPin() },
+       // Action button positions — replace the `actions` array with:
+{ label: 'Punch', right: '150px', bottom: '90px', onClick: () => this.player.punch() },
+{ label: 'Kick', right: '150px', bottom: '20px', onClick: () => this.player.kick() },
+{ label: 'Grab', right: '80px', bottom: '90px', onClick: () => this.player.grab() },
+{ label: 'Throw', right: '80px', bottom: '20px', onClick: () => this.player.throwOpponent() },
+{ label: 'Pin', right: '10px', bottom: '90px', onClick: () => this.player.attemptPin() },
+{ label: 'Break', right: '10px', bottom: '20px', onClick: () => this.player.breakPin() },
     ];
     for (const a of actions) {
       const btn = this.makeButton(a.label, { position: 'fixed', right: a.right, bottom: a.bottom, width: '65px', height: '50px' });
