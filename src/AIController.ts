@@ -1,5 +1,4 @@
 // src/AIController.ts
-// Decides on an interval rather than every frame — easy to tune.
 import { Fighter, FighterState } from './Fighter';
 import { Vector3 } from '@babylonjs/core';
 
