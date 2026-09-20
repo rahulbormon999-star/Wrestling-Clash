@@ -5,8 +5,11 @@
 // real Mixamo model can replace this rig later without touching combat
 // logic (the invisible capsule `mesh` stays the position/collision anchor
 // either way).
-import {
+/*import {
   Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh, TransformNode,
+} from '@babylonjs/core'; */
+import {
+  Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh, TransformNode, AnimationGroup,
 } from '@babylonjs/core';
 
 export enum FighterState {
