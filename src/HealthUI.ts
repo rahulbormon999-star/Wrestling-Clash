@@ -38,6 +38,16 @@ export class HealthUI {
     setTimeout(() => { this.countLabel.style.display = 'none'; }, 500);
   }
 
+  flashDamage(): void {
+    const overlay = document.createElement('div');
+    Object.assign(overlay.style, {
+      position: 'fixed', inset: '0', background: 'rgba(255,0,0,0.25)',
+      pointerEvents: 'none', zIndex: '15',
+    });
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.remove(), 150);
+  }
+
   update(): void {
     this.playerBarFill.style.width = Math.max(0, this.player.health) + '%';
     this.opponentLabel.textContent = 'Opponent: ' + this.conditionText(this.opponent.health);
