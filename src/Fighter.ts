@@ -1,13 +1,8 @@
 // src/Fighter.ts
-// Instead of a single capsule, each fighter is now a jointed "block figure"
-// — torso, head, two arm pivots, two leg pivots — built entirely from
-// primitives. This is a code-only stopgap for visible limbs/animation; a
-// real Mixamo model can replace this rig later without touching combat
-// logic (the invisible capsule `mesh` stays the position/collision anchor
-// either way).
-/*import {
-  Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh, TransformNode,
-} from '@babylonjs/core'; */
+// Each fighter starts as a code-built block figure (visible fallback), and
+// setVisualModel() swaps in a real character model + its animations once
+// one loads successfully — the block rig hides itself at that point. The
+// invisible capsule `mesh` stays the position/collision anchor either way.
 import {
   Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh, TransformNode, AnimationGroup,
 } from '@babylonjs/core';
@@ -37,6 +32,10 @@ export class Fighter {
 
   private material: StandardMaterial;
   private rig: Rig;
+  private rigMeshes: Mesh[] = [];
+  private animationGroups: AnimationGroup[] = [];
+  private currentAnim: AnimationGroup | null = null;
+
   private regenTimer = 0;
   private readonly PIN_BREAK_HEALTH_THRESHOLD = 10;
 
@@ -67,11 +66,13 @@ export class Fighter {
     torso.parent = root;
     torso.position.set(0, 0.9, 0);
     torso.material = this.material;
+    this.rigMeshes.push(torso);
 
     const head = MeshBuilder.CreateSphere(name + 'Head', { diameter: 0.36 }, scene);
     head.parent = root;
     head.position.set(0, 1.45, 0);
     head.material = this.material;
+    this.rigMeshes.push(head);
 
     const makeLimb = (limbName: string, height: number, diameter: number, pivotPos: Vector3): TransformNode => {
       const pivot = new TransformNode(limbName + 'Pivot', scene);
@@ -81,6 +82,7 @@ export class Fighter {
       limbMesh.parent = pivot;
       limbMesh.position.set(0, -height / 2, 0);
       limbMesh.material = this.material;
+      this.rigMeshes.push(limbMesh);
       return pivot;
     };
 
@@ -92,6 +94,30 @@ export class Fighter {
     return { rightArmPivot, leftArmPivot, rightLegPivot, leftLegPivot };
   }
 
+  // Call this once a real model has loaded — hides the block rig, attaches
+  // the model, and starts playing its "idle" clip if one is found.
+  setVisualModel(root: TransformNode, animationGroups: AnimationGroup[] = [], scaleFactor: number = 1): void {
+    for (const m of this.rigMeshes) m.isVisible = false;
+
+    root.parent = this.mesh;
+    root.position.set(0, -0.9, 0);
+    root.scaling.set(scaleFactor, scaleFactor, scaleFactor);
+
+    this.animationGroups = animationGroups;
+    for (const g of this.animationGroups) g.stop();
+    this.playAnimByKeyword('idle');
+  }
+
+  private playAnimByKeyword(keyword: string, loop: boolean = true): boolean {
+    const group = this.animationGroups.find(g => g.name.toLowerCase().includes(keyword));
+    if (!group) return false;
+    if (this.currentAnim === group) return true;
+    this.currentAnim?.stop();
+    group.play(loop);
+    this.currentAnim = group;
+    return true;
+  }
+
   update(deltaSeconds: number, moveVector?: MoveVector): void {
     this.regenerateHealth(deltaSeconds);
     if (this.isPlayerControlled && moveVector && (this.state === FighterState.IDLE || this.state === FighterState.MOVING)) {
@@ -99,6 +125,11 @@ export class Fighter {
     }
     this.updateAttackAnimation(deltaSeconds);
     this.updateWalkAnimation(deltaSeconds);
+
+    if (this.animationGroups.length > 0) {
+      if (this.state === FighterState.MOVING) this.playAnimByKeyword('walk');
+      else if (this.state === FighterState.IDLE) this.playAnimByKeyword('idle');
+    }
   }
 
   private regenerateHealth(deltaSeconds: number): void {
@@ -169,6 +200,9 @@ export class Fighter {
     this.attackType = 'punch';
     this.attackTimer = 0;
     this.attackDuration = 0.4;
+    if (this.animationGroups.length > 0) {
+      if (!this.playAnimByKeyword('punch', false)) this.playAnimByKeyword('attack', false);
+    }
     this.tryHit(8, 1.2);
     setTimeout(() => { if (this.state === FighterState.ATTACKING) this.state = FighterState.IDLE; }, 400);
   }
@@ -179,6 +213,9 @@ export class Fighter {
     this.attackType = 'kick';
     this.attackTimer = 0;
     this.attackDuration = 0.5;
+    if (this.animationGroups.length > 0) {
+      if (!this.playAnimByKeyword('kick', false)) this.playAnimByKeyword('attack', false);
+    }
     this.tryHit(12, 1.4);
     setTimeout(() => { if (this.state === FighterState.ATTACKING) this.state = FighterState.IDLE; }, 500);
   }
@@ -240,4 +277,4 @@ export class Fighter {
     if (!this.opponent) return Infinity;
     return Vector3.Distance(this.mesh.position, this.opponent.mesh.position);
   }
-                                                  }
+                 }
