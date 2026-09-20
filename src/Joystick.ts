@@ -1,8 +1,6 @@
 // src/Joystick.ts
-// A round virtual joystick (Free Fire style): drag the knob away from
-// center, direction + distance become an analog movement vector.
 export class Joystick {
-  public vector = { x: 0, y: 0 }; // x: -1(left)..1(right), y: -1(back)..1(forward)
+  public vector = { x: 0, y: 0 };
 
   private base: HTMLDivElement;
   private knob: HTMLDivElement;
@@ -89,7 +87,7 @@ export class Joystick {
     this.knob.style.top = 25 + cy + 'px';
 
     this.vector.x = cx / this.radius;
-    this.vector.y = -cy / this.radius; // dragging up = forward
+    this.vector.y = -cy / this.radius;
   }
 
   private reset(): void {
