@@ -5,6 +5,7 @@ import { AIController } from './AIController';
 import { RefereeAI } from './RefereeAI';
 import { HealthUI } from './HealthUI';
 import { TouchControls } from './TouchControls';
+import { loadCharacterModel } from './ModelLoader';
 
 export class MatchManager {
   public fighterA: Fighter;
@@ -15,7 +16,7 @@ export class MatchManager {
   private controls: TouchControls;
   private matchOver = false;
 
-  constructor(scene: Scene) {
+  constructor(private scene: Scene) {
     this.fighterA = new Fighter('player', scene, new Vector3(-2, 0.9, 0), new Color3(0.8, 0.2, 0.2), true);
     this.fighterB = new Fighter('ai', scene, new Vector3(2, 0.9, 0), new Color3(0.2, 0.4, 0.9), false);
     this.fighterA.opponent = this.fighterB;
@@ -32,6 +33,23 @@ export class MatchManager {
 
     this.fighterA.onHit = (amount) => this.healthUI.showHitTaken(amount);
     this.fighterB.onHit = (amount) => this.healthUI.showHitDealt(amount);
+
+    this.attachModels();
+  }
+
+  private async attachModels(): Promise<void> {
+    try {
+      const player = await loadCharacterModel(this.scene, '/models/fighter.glb');
+      this.fighterA.setVisualModel(player.root, player.animationGroups, 1);
+    } catch (e) {
+      console.warn('Player model failed to load, using placeholder rig', e);
+    }
+    try {
+      const ai = await loadCharacterModel(this.scene, '/models/fighter.glb');
+      this.fighterB.setVisualModel(ai.root, ai.animationGroups, 1);
+    } catch (e) {
+      console.warn('AI model failed to load, using placeholder rig', e);
+    }
   }
 
   update(deltaSeconds: number): void {
