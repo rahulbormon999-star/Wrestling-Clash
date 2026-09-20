@@ -1,16 +1,15 @@
 // src/Fighter.ts
-// One class drives every fighter — player or AI. Phase 1 uses a capsule
-// mesh (built here) — real Mixamo models swap in later without touching
-// this state machine. Added: a brief emissive "flash" on hit so damage is
-// visible even without a health-number popup.
-import { Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh } from '@babylonjs/core';
+// One class drives every fighter — player or AI. A capsule is always
+// created as the invisible "collider" (position/hit-detection anchor);
+// setVisualModel() attaches a real character on top of it once one loads.
+import { Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh, TransformNode } from '@babylonjs/core';
 
 export enum FighterState {
   IDLE, MOVING, ATTACKING, GRAPPLING, GRAPPLED,
   GROUNDED, PINNING, PINNED, RECOVERING, KO,
 }
 
-export interface MoveVector { x: number; y: number; } // x: -1..1 left/right, y: -1..1 back/forward
+export interface MoveVector { x: number; y: number; }
 
 export class Fighter {
   public mesh: Mesh;
@@ -19,9 +18,9 @@ export class Fighter {
   public opponent: Fighter | null = null;
   public isPlayerControlled: boolean;
   public moveSpeed = 4;
+  public onHit: (() => void) | null = null;
 
   private material: StandardMaterial;
-  private baseColor: Color3;
   private regenTimer = 0;
   private readonly PIN_BREAK_HEALTH_THRESHOLD = 10;
 
@@ -29,10 +28,16 @@ export class Fighter {
     this.isPlayerControlled = isPlayerControlled;
     this.mesh = MeshBuilder.CreateCapsule(name, { height: 1.8, radius: 0.4 }, scene);
     this.mesh.position = position;
-    this.baseColor = color;
     this.material = new StandardMaterial(name + 'Mat', scene);
     this.material.diffuseColor = color;
     this.mesh.material = this.material;
+  }
+
+  setVisualModel(root: TransformNode, scaleFactor: number = 0.01): void {
+    this.mesh.isVisible = false;
+    root.parent = this.mesh;
+    root.position.set(0, -0.9, 0);
+    root.scaling.set(scaleFactor, scaleFactor, scaleFactor);
   }
 
   update(deltaSeconds: number, moveVector?: MoveVector): void {
@@ -64,8 +69,6 @@ export class Fighter {
       this.state = FighterState.IDLE;
     }
   }
-
-  // --- Combat actions -------------------------------------------------
 
   punch(): void {
     if (this.state === FighterState.KO || this.state === FighterState.PINNED) return;
@@ -124,11 +127,11 @@ export class Fighter {
     const multiplier = this.health < 10 ? 1.3 : 1.0;
     this.health = Math.max(0, this.health - amount * multiplier);
     this.flashHit();
+    this.onHit?.();
     if (this.health <= 0) this.state = FighterState.KO;
   }
 
   private flashHit(): void {
-    // Visible-even-without-a-number feedback: brief white flash on hit.
     this.material.emissiveColor = new Color3(1, 1, 1);
     setTimeout(() => { this.material.emissiveColor = new Color3(0, 0, 0); }, 120);
   }
@@ -137,4 +140,4 @@ export class Fighter {
     if (!this.opponent) return Infinity;
     return Vector3.Distance(this.mesh.position, this.opponent.mesh.position);
   }
-        }
+}
