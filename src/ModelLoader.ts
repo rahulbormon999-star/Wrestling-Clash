@@ -1,8 +1,7 @@
 // src/ModelLoader.ts
-// Loads a Mixamo-exported, glTF/GLB-converted model and returns its root
-// node so a Fighter can attach it. Mixamo models come out at roughly
-// centimeter scale — 0.01 gets them close to Babylon's ~1-unit-per-meter
-// world; nudge this per-model if a character looks too big/small in the ring.
+// Loads a Mixamo-exported, glTF/GLB-converted model. If /models/fighter.glb
+// doesn't exist yet, this will throw and MatchManager falls back to the
+// placeholder capsule — so it's safe to deploy before the model file exists.
 import { Scene, TransformNode, SceneLoader } from '@babylonjs/core';
 import '@babylonjs/loaders/glTF';
 
