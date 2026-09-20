@@ -102,4 +102,4 @@ export class HealthUI {
     if (health > 10) return 'Badly hurt';
     return 'About to fall';
   }
-}
+      }
