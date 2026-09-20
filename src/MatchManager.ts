@@ -5,6 +5,7 @@ import { AIController } from './AIController';
 import { RefereeAI } from './RefereeAI';
 import { HealthUI } from './HealthUI';
 import { TouchControls } from './TouchControls';
+import { loadCharacterModel } from './ModelLoader';
 
 export class MatchManager {
   public fighterA: Fighter;
@@ -15,7 +16,7 @@ export class MatchManager {
   private controls: TouchControls;
   private matchOver = false;
 
-  constructor(scene: Scene) {
+  constructor(private scene: Scene) {
     this.fighterA = new Fighter('player', scene, new Vector3(-2, 0.9, 0), new Color3(0.8, 0.2, 0.2), true);
     this.fighterB = new Fighter('ai', scene, new Vector3(2, 0.9, 0), new Color3(0.2, 0.4, 0.9), false);
     this.fighterA.opponent = this.fighterB;
@@ -29,6 +30,24 @@ export class MatchManager {
     this.referee.onCount = (n) => this.healthUI.showCount(n);
 
     this.controls = new TouchControls(this.fighterA);
+    this.fighterA.onHit = () => this.healthUI.flashDamage();
+
+    this.attachModels();
+  }
+
+  private async attachModels(): Promise<void> {
+    try {
+      const playerModel = await loadCharacterModel(this.scene, '/models/fighter.glb');
+      this.fighterA.setVisualModel(playerModel);
+    } catch (e) {
+      console.warn('Player model failed to load, using placeholder capsule', e);
+    }
+    try {
+      const aiModel = await loadCharacterModel(this.scene, '/models/fighter.glb');
+      this.fighterB.setVisualModel(aiModel);
+    } catch (e) {
+      console.warn('AI model failed to load, using placeholder capsule', e);
+    }
   }
 
   update(deltaSeconds: number): void {
