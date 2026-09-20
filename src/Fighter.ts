@@ -1,8 +1,13 @@
 // src/Fighter.ts
-// One class drives every fighter — player or AI. A capsule is always
-// created as the invisible "collider" (position/hit-detection anchor);
-// setVisualModel() attaches a real character on top of it once one loads.
-import { Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh, TransformNode } from '@babylonjs/core';
+// Instead of a single capsule, each fighter is now a jointed "block figure"
+// — torso, head, two arm pivots, two leg pivots — built entirely from
+// primitives. This is a code-only stopgap for visible limbs/animation; a
+// real Mixamo model can replace this rig later without touching combat
+// logic (the invisible capsule `mesh` stays the position/collision anchor
+// either way).
+import {
+  Scene, MeshBuilder, StandardMaterial, Color3, Vector3, Mesh, TransformNode,
+} from '@babylonjs/core';
 
 export enum FighterState {
   IDLE, MOVING, ATTACKING, GRAPPLING, GRAPPLED,
@@ -11,33 +16,77 @@ export enum FighterState {
 
 export interface MoveVector { x: number; y: number; }
 
+interface Rig {
+  rightArmPivot: TransformNode;
+  leftArmPivot: TransformNode;
+  rightLegPivot: TransformNode;
+  leftLegPivot: TransformNode;
+}
+
 export class Fighter {
-  public mesh: Mesh;
+  public mesh: Mesh; // invisible capsule — position/collision anchor only
   public health = 100;
   public state: FighterState = FighterState.IDLE;
   public opponent: Fighter | null = null;
   public isPlayerControlled: boolean;
   public moveSpeed = 4;
-  public onHit: (() => void) | null = null;
+  public onHit: ((amount: number) => void) | null = null;
 
   private material: StandardMaterial;
+  private rig: Rig;
   private regenTimer = 0;
   private readonly PIN_BREAK_HEALTH_THRESHOLD = 10;
 
+  private attackType: 'punch' | 'kick' | null = null;
+  private attackTimer = 0;
+  private attackDuration = 0;
+  private walkCycle = 0;
+
   constructor(name: string, scene: Scene, position: Vector3, color: Color3, isPlayerControlled: boolean) {
     this.isPlayerControlled = isPlayerControlled;
+
     this.mesh = MeshBuilder.CreateCapsule(name, { height: 1.8, radius: 0.4 }, scene);
     this.mesh.position = position;
+    this.mesh.isVisible = false;
+
     this.material = new StandardMaterial(name + 'Mat', scene);
     this.material.diffuseColor = color;
-    this.mesh.material = this.material;
+
+    this.rig = this.buildRig(name, scene);
   }
 
-  setVisualModel(root: TransformNode, scaleFactor: number = 0.01): void {
-    this.mesh.isVisible = false;
+  private buildRig(name: string, scene: Scene): Rig {
+    const root = new TransformNode(name + 'RigRoot', scene);
     root.parent = this.mesh;
     root.position.set(0, -0.9, 0);
-    root.scaling.set(scaleFactor, scaleFactor, scaleFactor);
+
+    const torso = MeshBuilder.CreateBox(name + 'Torso', { width: 0.5, height: 0.7, depth: 0.3 }, scene);
+    torso.parent = root;
+    torso.position.set(0, 0.9, 0);
+    torso.material = this.material;
+
+    const head = MeshBuilder.CreateSphere(name + 'Head', { diameter: 0.36 }, scene);
+    head.parent = root;
+    head.position.set(0, 1.45, 0);
+    head.material = this.material;
+
+    const makeLimb = (limbName: string, height: number, diameter: number, pivotPos: Vector3): TransformNode => {
+      const pivot = new TransformNode(limbName + 'Pivot', scene);
+      pivot.parent = root;
+      pivot.position.copyFrom(pivotPos);
+      const limbMesh = MeshBuilder.CreateCylinder(limbName, { height, diameter }, scene);
+      limbMesh.parent = pivot;
+      limbMesh.position.set(0, -height / 2, 0);
+      limbMesh.material = this.material;
+      return pivot;
+    };
+
+    const rightArmPivot = makeLimb(name + 'RightArm', 0.55, 0.14, new Vector3(0.34, 1.2, 0));
+    const leftArmPivot = makeLimb(name + 'LeftArm', 0.55, 0.14, new Vector3(-0.34, 1.2, 0));
+    const rightLegPivot = makeLimb(name + 'RightLeg', 0.85, 0.2, new Vector3(0.15, 0.85, 0));
+    const leftLegPivot = makeLimb(name + 'LeftLeg', 0.85, 0.2, new Vector3(-0.15, 0.85, 0));
+
+    return { rightArmPivot, leftArmPivot, rightLegPivot, leftLegPivot };
   }
 
   update(deltaSeconds: number, moveVector?: MoveVector): void {
@@ -45,6 +94,8 @@ export class Fighter {
     if (this.isPlayerControlled && moveVector && (this.state === FighterState.IDLE || this.state === FighterState.MOVING)) {
       this.handleMovement(moveVector, deltaSeconds);
     }
+    this.updateAttackAnimation(deltaSeconds);
+    this.updateWalkAnimation(deltaSeconds);
   }
 
   private regenerateHealth(deltaSeconds: number): void {
@@ -70,9 +121,51 @@ export class Fighter {
     }
   }
 
+  private updateWalkAnimation(deltaSeconds: number): void {
+    if (this.state !== FighterState.MOVING) {
+      this.rig.leftLegPivot.rotation.x *= 0.8;
+      this.rig.rightLegPivot.rotation.x *= 0.8;
+      if (this.attackType === null) {
+        this.rig.leftArmPivot.rotation.x *= 0.8;
+        this.rig.rightArmPivot.rotation.x *= 0.8;
+      }
+      return;
+    }
+    this.walkCycle += deltaSeconds * 8;
+    const swing = Math.sin(this.walkCycle) * 0.5;
+    this.rig.rightLegPivot.rotation.x = swing;
+    this.rig.leftLegPivot.rotation.x = -swing;
+    if (this.attackType === null) {
+      this.rig.rightArmPivot.rotation.x = -swing * 0.6;
+      this.rig.leftArmPivot.rotation.x = swing * 0.6;
+    }
+  }
+
+  private updateAttackAnimation(deltaSeconds: number): void {
+    if (!this.attackType) return;
+    this.attackTimer += deltaSeconds;
+    const progress = Math.min(1, this.attackTimer / this.attackDuration);
+    const swing = Math.sin(progress * Math.PI);
+
+    if (this.attackType === 'punch') {
+      this.rig.rightArmPivot.rotation.x = -swing * (Math.PI / 2);
+    } else if (this.attackType === 'kick') {
+      this.rig.rightLegPivot.rotation.x = -swing * (Math.PI / 2.2);
+    }
+
+    if (progress >= 1) {
+      this.attackType = null;
+      this.rig.rightArmPivot.rotation.x = 0;
+      this.rig.rightLegPivot.rotation.x = 0;
+    }
+  }
+
   punch(): void {
     if (this.state === FighterState.KO || this.state === FighterState.PINNED) return;
     this.state = FighterState.ATTACKING;
+    this.attackType = 'punch';
+    this.attackTimer = 0;
+    this.attackDuration = 0.4;
     this.tryHit(8, 1.2);
     setTimeout(() => { if (this.state === FighterState.ATTACKING) this.state = FighterState.IDLE; }, 400);
   }
@@ -80,6 +173,9 @@ export class Fighter {
   kick(): void {
     if (this.state === FighterState.KO || this.state === FighterState.PINNED) return;
     this.state = FighterState.ATTACKING;
+    this.attackType = 'kick';
+    this.attackTimer = 0;
+    this.attackDuration = 0.5;
     this.tryHit(12, 1.4);
     setTimeout(() => { if (this.state === FighterState.ATTACKING) this.state = FighterState.IDLE; }, 500);
   }
@@ -125,9 +221,10 @@ export class Fighter {
   takeDamage(amount: number): void {
     if (this.state === FighterState.KO) return;
     const multiplier = this.health < 10 ? 1.3 : 1.0;
+    const actualDamage = Math.min(this.health, amount * multiplier);
     this.health = Math.max(0, this.health - amount * multiplier);
     this.flashHit();
-    this.onHit?.();
+    this.onHit?.(Math.round(actualDamage));
     if (this.health <= 0) this.state = FighterState.KO;
   }
 
@@ -140,4 +237,4 @@ export class Fighter {
     if (!this.opponent) return Infinity;
     return Vector3.Distance(this.mesh.position, this.opponent.mesh.position);
   }
-}
+                                                  }
