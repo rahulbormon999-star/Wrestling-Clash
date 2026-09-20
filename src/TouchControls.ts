@@ -14,7 +14,7 @@ const ICONS = {
 export class TouchControls {
   private joystick: Joystick;
 
-  constructor(private player: Fighter) {
+  constructor(private player: Fighter, private onAction: (label: string) => void) {
     this.joystick = new Joystick();
     this.buildActionButtons();
   }
@@ -38,10 +38,24 @@ export class TouchControls {
       btn.setAttribute('aria-label', a.label);
       Object.assign(btn.style, {
         position: 'fixed', right: a.right, bottom: a.bottom, width: '58px', height: '58px',
-        borderRadius: '50%', border: 'none', background: 'rgba(59,130,246,0.85)',
+        borderRadius: '50%', border: '2px solid rgba(255,255,255,0.3)', background: 'rgba(59,130,246,0.85)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: '10', touchAction: 'none',
+        transition: 'transform 0.08s ease, background 0.08s ease',
       });
-      btn.addEventListener('click', a.onClick);
+      btn.addEventListener('pointerdown', () => {
+        btn.style.transform = 'scale(0.88)';
+        btn.style.background = 'rgba(37,99,235,0.95)';
+      });
+      const release = () => {
+        btn.style.transform = 'scale(1)';
+        btn.style.background = 'rgba(59,130,246,0.85)';
+      };
+      btn.addEventListener('pointerup', release);
+      btn.addEventListener('pointerleave', release);
+      btn.addEventListener('click', () => {
+        a.onClick();
+        this.onAction(a.label);
+      });
       document.body.appendChild(btn);
     }
   }
