@@ -1,6 +1,4 @@
 // src/TouchControls.ts
-// Movement comes from the round Joystick (analog). Action buttons use
-// small original SVG icons instead of text labels.
 import { Fighter } from './Fighter';
 import { Joystick } from './Joystick';
 
